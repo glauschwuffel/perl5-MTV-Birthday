@@ -1,5 +1,7 @@
+package MTV::Birthday;
+# ABSTRACT: convert birthday csv to LyX document
+
 use strict;
 use warnings;
-package MTV::Birthday;
 
 1;

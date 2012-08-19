@@ -1,2 +1,5 @@
 .project
 .DS_Store
+.build
+*.tar.gz
+MTV-Birthday-*

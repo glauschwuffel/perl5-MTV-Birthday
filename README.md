@@ -5,3 +5,9 @@ Everything is fixed: The number of columns, the LyX version and the formatting
 of the resulting table in the document.
 
 One day the code in here may be generalized and put on CPAN.
+
+This is Dist::Zilla-base.
+
+To try it:
+
+  dzil run perl scripts/birthday2lyx --file birthdays.csv
