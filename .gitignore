@@ -1,5 +1,8 @@
 .project
+.includepath
+.settings
 .DS_Store
 .build
 *.tar.gz
 MTV-Birthday-*
+aaa

@@ -10,6 +10,8 @@ use Getopt::Long;
 use Text::CSV;
 use Encode qw(from_to);
 
+use MTV::Birthday;
+
 our @entries;
 
 =head2 new
@@ -62,7 +64,7 @@ sub run {
 	return show_help()    if $self->{show_help};
 
 	return 1 if $self->_process_file();
-	
+
 	# We should never get here. If we do, the logic above is strange
 	# and we have a bug.
 	_bug('Strange logic in run()');
@@ -97,29 +99,32 @@ sub _bug {
 }
 
 sub _process_file {
-	my ($self)=@_;
-	
+	my ($self) = @_;
+
 	my $csv = Text::CSV->new(
 		{
 			binary   => 1,
 			sep_char => ';'
 		}
-	) or &die("Cannot use CSV: " . Text::CSV->error_diag());
+	) or &die( "Cannot use CSV: " . Text::CSV->error_diag() );
 
-	open my $fh, "<", $self->{file} or &die("Unable to open file '".$self->{file}."': ".$OS_ERROR);
+	open my $fh, "<", $self->{file}
+	  or &die( "Unable to open file '" . $self->{file} . "': " . $OS_ERROR );
 
 	while ( my $row = $csv->getline($fh) ) {
 		my $first_name = $row->[1];
 		my $last_name  = $row->[0];
 		my $birthday   = $row->[2];
 
-		my $stripped_birthday = _strip_year_from_birthday($birthday);
-		from_to( $first_name, 'iso-8859-1', 'utf-8' );
-		from_to( $last_name,  'iso-8859-1', 'utf-8' );
-
 		next
 		  if (  ( $first_name eq 'Vorname' )
-			and ( $last_name eq 'Nachname' ) );
+			and ( $last_name eq 'Nachname' )
+			and ( $birthday  eq 'Geburtsdatum' ) );
+
+		my $stripped_birthday =
+		  MTV::Birthday->new( contents => $birthday )->parse->ddmm;
+		from_to( $first_name, 'iso-8859-1', 'utf-8' );
+		from_to( $last_name,  'iso-8859-1', 'utf-8' );
 
 		_add_entry( $first_name, $last_name, $stripped_birthday );
 
@@ -129,17 +134,8 @@ sub _process_file {
 	close $fh;
 
 	_print_document();
-	
+
 	return 1;
-}
-
-sub _strip_year_from_birthday {
-	my $birthday = shift;
-
-	if ( $birthday =~ m/^(\d{2}).(\d{2}).(\d{4})$/ ) {
-		return "$1.$2.";
-	}
-	return "--.-- $birthday";
 }
 
 sub _add_entry {
