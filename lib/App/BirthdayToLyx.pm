@@ -126,7 +126,8 @@ sub _process_file {
 		from_to( $first_name, 'iso-8859-1', 'utf-8' );
 		from_to( $last_name,  'iso-8859-1', 'utf-8' );
 
-		_add_entry( $first_name, $last_name, $stripped_birthday );
+#		_add_entry( $first_name, $last_name, $stripped_birthday );
+		_add_entry( $first_name, $last_name, MTV::Birthday->new( contents => $birthday )->parse );
 
 	}
 
@@ -140,7 +141,26 @@ sub _process_file {
 
 sub _add_entry {
 	my ( $first_name, $last_name, $birthday ) = @_;
-	my $content = '<cell alignment="left" valignment="top" usebox="none">
+
+use MTV::Person;
+use MTV::NameCellFormatter;
+use MTV::BirthdayCellFormatter;
+
+	my $person = MTV::Person->new(
+		first_name => $first_name,
+		last_name  => $last_name,
+		birthday   => $birthday
+	);
+
+	my $name_formatter=MTV::NameCellFormatter->new(person=>$person);
+	my $birthday_formatter=MTV::BirthdayCellFormatter->new(person=>$person);
+
+	my $contents = $name_formatter->format()
+	.$birthday_formatter->format();
+
+=pod
+
+	my $contents = '<cell alignment="left" valignment="top" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
@@ -164,7 +184,9 @@ sub _add_entry {
 </cell>
 ';
 
-	push @entries, $content;
+=cut
+
+	push @entries, $contents;
 }
 
 sub _print_document {
