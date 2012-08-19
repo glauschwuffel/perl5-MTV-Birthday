@@ -11,6 +11,8 @@ use Text::CSV;
 use Encode qw(from_to);
 
 use MTV::Birthday;
+use MTV::Person;
+use MTV::PersonCellPairFormatter;	
 
 our @entries;
 
@@ -41,9 +43,10 @@ sub process_args {
 	Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));
 
 	GetOptions(
-		'f|file=s' => \$self->{file},
-		'h|help|?' => \$self->{show_help},
-		'man'      => sub {
+		'f|file=s'    => \$self->{file},
+		'o|outfile=s' => \$self->{outfile},
+		'h|help|?'    => \$self->{show_help},
+		'man'         => sub {
 			require Pod::Usage;
 			Pod::Usage::pod2usage( { -verbose => 2 } );
 			exit;
@@ -60,10 +63,12 @@ sub run {
 	my ($self) = @_;
 
 	# Show version or help?
-	return show_version() if $self->{show_version};
-	return show_help()    if $self->{show_help};
+	return $self->show_version if $self->{show_version};
+	return $self->show_help    if $self->{show_help};
 
-	return 1 if $self->_process_file();
+	$self->_redirect_stdout_to_file if $self->{outfile};
+	
+	return 1 if $self->_process_file;
 
 	# We should never get here. If we do, the logic above is strange
 	# and we have a bug.
@@ -126,8 +131,9 @@ sub _process_file {
 		from_to( $first_name, 'iso-8859-1', 'utf-8' );
 		from_to( $last_name,  'iso-8859-1', 'utf-8' );
 
-#		_add_entry( $first_name, $last_name, $stripped_birthday );
-		_add_entry( $first_name, $last_name, MTV::Birthday->new( contents => $birthday )->parse );
+		#		_add_entry( $first_name, $last_name, $stripped_birthday );
+		_add_entry( $first_name, $last_name,
+			MTV::Birthday->new( contents => $birthday )->parse );
 
 	}
 
@@ -139,12 +145,17 @@ sub _process_file {
 	return 1;
 }
 
+sub _redirect_stdout_to_file {
+	my ($self)=@_;
+	
+	open my $fh, '>', $self->{outfile} or
+		&die("Unable to open output file '".$self->{outfile}."': $OS_ERROR");
+		
+	select $fh;
+}
+
 sub _add_entry {
 	my ( $first_name, $last_name, $birthday ) = @_;
-
-use MTV::Person;
-use MTV::NameCellFormatter;
-use MTV::BirthdayCellFormatter;
 
 	my $person = MTV::Person->new(
 		first_name => $first_name,
@@ -152,40 +163,8 @@ use MTV::BirthdayCellFormatter;
 		birthday   => $birthday
 	);
 
-	my $name_formatter=MTV::NameCellFormatter->new(person=>$person);
-	my $birthday_formatter=MTV::BirthdayCellFormatter->new(person=>$person);
-
-	my $contents = $name_formatter->format()
-	.$birthday_formatter->format();
-
-=pod
-
-	my $contents = '<cell alignment="left" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
-\size footnotesize
-' . $first_name . ' ' . $last_name . '
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="right" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
-\size footnotesize
-' . $birthday . '
-\end_layout
-
-\end_inset
-</cell>
-';
-
-=cut
-
+	my $formatter=MTV::PersonCellPairFormatter->new(person => $person);
+	my $contents=$formatter->format();
 	push @entries, $contents;
 }
 
