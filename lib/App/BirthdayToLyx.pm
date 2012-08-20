@@ -12,7 +12,7 @@ use Encode qw(from_to);
 
 use MTV::Birthday;
 use MTV::Person;
-use MTV::PersonCellPairFormatter;	
+use MTV::PersonCellPairFormatter;
 
 our @entries;
 
@@ -67,7 +67,7 @@ sub run {
 	return $self->show_help    if $self->{show_help};
 
 	$self->_redirect_stdout_to_file if $self->{outfile};
-	
+
 	return 1 if $self->_process_file;
 
 	# We should never get here. If we do, the logic above is strange
@@ -116,6 +116,7 @@ sub _process_file {
 	open my $fh, "<", $self->{file}
 	  or &die( "Unable to open file '" . $self->{file} . "': " . $OS_ERROR );
 
+	my $last_month = 'i am no month';
 	while ( my $row = $csv->getline($fh) ) {
 		my $first_name = $row->[1];
 		my $last_name  = $row->[0];
@@ -126,14 +127,15 @@ sub _process_file {
 			and ( $last_name eq 'Nachname' )
 			and ( $birthday  eq 'Geburtsdatum' ) );
 
-		my $stripped_birthday =
-		  MTV::Birthday->new( contents => $birthday )->parse->ddmm;
 		from_to( $first_name, 'iso-8859-1', 'utf-8' );
 		from_to( $last_name,  'iso-8859-1', 'utf-8' );
 
-		#		_add_entry( $first_name, $last_name, $stripped_birthday );
-		_add_entry( $first_name, $last_name,
-			MTV::Birthday->new( contents => $birthday )->parse );
+		my $b = MTV::Birthday->new( contents => $birthday )->parse;
+		my $this_month = $b->month;
+		_add_month_cell($this_month) if $this_month ne $last_month;
+		$last_month = $this_month;
+
+		_add_entry( $first_name, $last_name, $b );
 
 	}
 
@@ -146,11 +148,12 @@ sub _process_file {
 }
 
 sub _redirect_stdout_to_file {
-	my ($self)=@_;
-	
-	open my $fh, '>', $self->{outfile} or
-		&die("Unable to open output file '".$self->{outfile}."': $OS_ERROR");
-		
+	my ($self) = @_;
+
+	open my $fh, '>', $self->{outfile}
+	  or &die(
+		"Unable to open output file '" . $self->{outfile} . "': $OS_ERROR" );
+
 	select $fh;
 }
 
@@ -163,16 +166,27 @@ sub _add_entry {
 		birthday   => $birthday
 	);
 
-	my $formatter=MTV::PersonCellPairFormatter->new(person => $person);
-	my $contents=$formatter->format();
-	push @entries, $contents;
+	push @entries, $person;
+}
+
+sub _add_month_cell {
+	my ($month) = @_;
+
+	my @month_names=qw(Januar Februar MŠrz April Mai Juni Juli August
+	September Oktober November Dezember);
+
+	my $month_number=($month+0)-1; # force conversion to number by adding 0
+	my $month_name=$month_names[$month_number];
+	
+	my $month_cell_pair =
+	  _start_month_multi_cell($month_name) . _end_month_multi_cell();
+
+	push @entries, $month_cell_pair;
 }
 
 sub _print_document {
 	_print_preamble();
 	_print_open_table();
-
-	#    _print_rows();
 	_print_table();
 	_print_close_table();
 	_print_closing();
@@ -456,7 +470,16 @@ sub _get_cell_pair {
 
 	return _empty_cell_pair() if $cell_number >= scalar @entries;
 
-	return $entries[$cell_number];
+	my $entry = $entries[$cell_number];
+
+	# is the entry a person?
+	if ( ref($entry) eq 'MTV::Person' ) {
+		my $formatter = MTV::PersonCellPairFormatter->new( person => $entry );
+		return $formatter->format();
+	}
+
+	# no person, return as it is
+	return $entry;
 }
 
 1;
