@@ -384,7 +384,7 @@ sub _empty_cell_pair {
 }
 
 sub _name_cell_declaration {
-	return '<column alignment="left" valignment="top" width="3cm">
+	return '<column alignment="left" valignment="top" width="4cm">
 ';
 }
 
